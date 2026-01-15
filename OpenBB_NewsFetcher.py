@@ -29,7 +29,7 @@ class OpenBBNewsFetcher:
             else:
                 self.logger.debug(f"{name} API Key not found.")
 
-    def fetch_company_news(self, symbols: list[str], limit: int = 50, days_back: int = 7) -> list[dict]:
+    def fetch_company_news(self, symbols: list[str], limit: int = 100, days_back: int = 7) -> list[dict]:
         """
         Fetch company news from multiple providers to maximize quantity.
         Prioritizes YFinance (Free/Working) over FMP (Restricted).
@@ -81,7 +81,7 @@ class OpenBBNewsFetcher:
 
         return self._deduplicate_news(all_news)
 
-    def fetch_world_news(self, limit: int = 50) -> list[dict]:
+    def fetch_world_news(self, limit: int = 100) -> list[dict]:
         """
         Fetch general world/market news.
         STRATEGY CHANGE:

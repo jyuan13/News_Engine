@@ -12,8 +12,8 @@ import os
 # - value: 代码 (Ticker) 或 关键词 (Keyword)
 # - name: 显示名称
 # - type: 类型 (stock_us, stock_hk, stock_vn, stock_zh_a, etf_zh, future_foreign, keyword)
-#   - stock_... / future_... : 会尝试通过 API 获取新闻
-#   - keyword : 目前仅作为占位符或不需要直接获取 Ticker 新闻的关键词
+#   - stock_... / future_... : 会尝试通过 API 获取新闻 (YF, OpenBB, Akshare)
+#   - keyword : 会通过 Google RSS (mass coverage) 和 Guardian (quality) 获取新闻
 # -----------------------------------------------------------------------------
 
 CONFIG = {
@@ -34,6 +34,7 @@ CONFIG = {
             # ---------------------------------------------------------------------
             "US_MARKET_TECH": {
                 # 描述: 纳指、标普、七巨头、芯片股及AI相关概念
+                # Note: Items of type 'keyword' will be processed by GoogleRSS/Guardian
                 "desc": "US Tech Giants, Chips, and AI related keywords",
                 "items": [
                     # --- Tickers (代码) ---

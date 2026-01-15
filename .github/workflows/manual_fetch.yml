@@ -31,8 +31,8 @@ jobs:
       run: |
         cat news_result.json
         
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v3
+    - name: Upload News Artifacts
+      uses: actions/upload-artifact@v4
       with:
-        name: news_result
+        name: news-results
         path: news_result.json
