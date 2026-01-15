@@ -42,7 +42,9 @@ class OpenBBNewsFetcher:
         # Adjusted priorities based on user feedback/logs:
         # 1. YFinance: Confirmed working and free.
         # 2. FMP: API key exists but user reported 402 Restricted. usage might be limited.
-        providers = ['yfinance', 'fmp']
+        providers = ['yfinance']
+        if os.getenv("FMP_API_KEY"):
+            providers.append('fmp')
         
         start_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
         end_date = datetime.now().strftime('%Y-%m-%d')
