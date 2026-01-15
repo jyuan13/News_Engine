@@ -9,3 +9,5 @@ openbb
 feedparser
 newspaper3k
 lxml[html_clean]
+newsapi-python
+google-search-results

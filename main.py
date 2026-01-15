@@ -24,117 +24,145 @@ def main():
     google_fetcher = GoogleNewsRSSFetcher(stats_tracker)
     guardian_fetcher = GuardianFetcher(stats_tracker)
 
-    output_data = {}
+    # Separate Data Containers
+    data_yfinance = []
+    data_openbb = []
+    data_akshare = []
+    data_google_rss = []
+    data_guardian = [] # If enabled later
 
-    # 2. Process English Sources (YFinance + OpenBB + Google + Guardian)
+    # 2. Process English Sources
     if "ENGLISH_SOURCES" in CONFIG["GROUPS"]:
         for cat_name, cat_config in CONFIG["GROUPS"]["ENGLISH_SOURCES"].items():
             print(f"\n>>> Processing English Category: {cat_name}")
-            output_data[cat_name] = []
             
             for item in cat_config["items"]:
                 val = item["value"]
-                name = item["name"]
                 itype = item.get("type", "stock_us")
-                
-                fetched = []
                 
                 # CASE A: Stocks/Indices (YFinance, OpenBB)
                 if itype in ["stock_us", "index_us", "stock_vn", "future_us"]:
                     # 1. YFinance
-                    fetched.extend(yf_fetcher.fetch(val))
+                    yf_res = yf_fetcher.fetch(val)
+                    if yf_res:
+                        _tag_category(yf_res, cat_name)
+                        data_yfinance.extend(yf_res)
                     
                     # 2. OpenBB
                     try:
                         obb_news = obb_fetcher.fetch_company_news([val])
                         if obb_news:
-                            fetched.extend(obb_news)
+                            _tag_category(obb_news, cat_name)
+                            data_openbb.extend(obb_news)
                             stats_tracker.update(f"OpenBB({val})", len(obb_news))
                     except Exception as e:
                         stats_tracker.update(f"OpenBB({val})", 0, e)
                         
-                # CASE B: Keywords/Topics (Google RSS, Guardian)
-                # Note: We also add Google RSS for stocks to boost quantity if user wants
-                # But primarily for keywords.
-                
-                if itype == "keyword" or "desc" in item: # "desc" usually implies complex topic
-                    # 1. Google RSS (Mass Quantity + Full Text Scrape)
+                # CASE B: Keywords/Topics (Google RSS, Gaurdian)
+                if itype == "keyword" or "desc" in item:
+                    # 1. Google RSS
                     g_news = google_fetcher.fetch(query=val, lang="en-US", geo="US")
-                    fetched.extend(g_news)
+                    if g_news:
+                        _tag_category(g_news, cat_name)
+                        data_google_rss.extend(g_news)
                     
-                    # 2. Guardian (High Quality Full Text)
-                    # Use 'val' or 'name' as query
-                    guard_news = guardian_fetcher.fetch(query=val)
-                    fetched.extend(guard_news)
-                
-                if fetched:
-                    output_data[cat_name].extend(fetched)
+                    # 2. Guardian (Disabled)
+                    # guard_news = guardian_fetcher.fetch(query=val)
+                    # if guard_news: data_guardian.extend(guard_news)
 
-    # 3. Process Chinese Sources (Akshare + Google RSS CN)
+    # 3. Process Chinese Sources
     if "CHINESE_SOURCES" in CONFIG["GROUPS"]:
         for cat_name, cat_config in CONFIG["GROUPS"]["CHINESE_SOURCES"].items():
             print(f"\n>>> Processing Chinese Category: {cat_name}")
-            output_data[cat_name] = []
             
             for item in cat_config["items"]:
                 val = item["value"]
                 itype = item.get("type", "stock_hk")
                 
-                fetched = []
-                
-                # CASE A: HK/CN Stocks (Akshare)
                 if itype in ["stock_hk", "stock_zh_a", "etf_zh"]:
-                    fetched.extend(ak_fetcher.fetch_stock_news(val))
+                    # Akshare
+                    ak_news = ak_fetcher.fetch_stock_news(val)
+                    if ak_news:
+                        _tag_category(ak_news, cat_name)
+                        data_akshare.extend(ak_news)
                     
-                    # Augment with Google RSS (CN) for specific tickers (using Name often better than Code in RSS)
-                    # e.g. "腾讯" instead of "0700.HK"
+                    # Google RSS (CN)
                     name_query = item.get("name", val)
-                    g_news = google_fetcher.fetch(query=name_query, lang="zh-CN", geo="CN", limit=30) # Moderate limit for specific stocks
-                    fetched.extend(g_news)
+                    g_news_cn = google_fetcher.fetch(query=name_query, lang="zh-CN", geo="CN", limit=30)
+                    if g_news_cn:
+                        _tag_category(g_news_cn, cat_name)
+                        data_google_rss.extend(g_news_cn)
 
-                # CASE B: Keywords (Google RSS CN)
                 elif itype == "keyword":
-                    logger.info(f"Searching Keyword (CN): {val}")
-                    g_news = google_fetcher.fetch(query=val, lang="zh-CN", geo="CN")
-                    fetched.extend(g_news)
-                
-                if fetched:
-                    output_data[cat_name].extend(fetched)
+                    # Google RSS (CN)
+                    g_news_cn = google_fetcher.fetch(query=val, lang="zh-CN", geo="CN")
+                    if g_news_cn:
+                        _tag_category(g_news_cn, cat_name)
+                        data_google_rss.extend(g_news_cn)
 
-    # 4. Process General/Macro (Mixed/Global)
+    # 4. General/Macro
     print("\n>>> Processing General/Macro News")
-    output_data["GENERAL"] = []
     
-    # A. Akshare Rolling
-    output_data["GENERAL"].extend(ak_fetcher.fetch_rolling_news())
+    # Akshare Rolling
+    rolling = ak_fetcher.fetch_rolling_news()
+    if rolling:
+        _tag_category(rolling, "GENERAL")
+        data_akshare.extend(rolling)
     
-    # B. OpenBB World News (Proxy)
+    # OpenBB World
     try:
         obb_world = obb_fetcher.fetch_world_news()
         if obb_world:
-            output_data["GENERAL"].extend(obb_world)
+            _tag_category(obb_world, "GENERAL")
+            data_openbb.extend(obb_world)
     except Exception as e:
         logger.warning(f"OpenBB World News failed: {e}")
         
-    # C. Google RSS "World News"
-    output_data["GENERAL"].extend(google_fetcher.fetch("World Economy", limit=50))
-    output_data["GENERAL"].extend(google_fetcher.fetch("Artificial Intelligence", limit=50))
+    # Google RSS World
+    w1 = google_fetcher.fetch("World Economy", limit=50)
+    w2 = google_fetcher.fetch("Artificial Intelligence", limit=50)
+    if w1: 
+        _tag_category(w1, "GENERAL")
+        data_google_rss.extend(w1)
+    if w2:
+        _tag_category(w2, "GENERAL")
+        data_google_rss.extend(w2)
 
-    # 5. Generate Final Report & Save
-    final_output = {
-        "meta": {
-            "timestamp": str(datetime.now()),
-            "days_back": CONFIG["DAYS_BACK"],
-            "stats": stats_tracker.get_report()
-        },
-        "data": output_data
-    }
+    # 5. Save Reports Separately
+    timestamp = str(datetime.now())
+    stats_report = stats_tracker.get_report()
     
-    abs_path = os.path.abspath(CONFIG["OUTPUT_FILE"])
-    save_custom_json(final_output, abs_path)
+    _save_report("Report_YFinance.json", data_yfinance, timestamp, stats_report)
+    _save_report("Report_Akshare.json", data_akshare, timestamp, stats_report)
+    _save_report("Report_OpenBB.json", data_openbb, timestamp, stats_report)
+    _save_report("Report_GoogleRSS.json", data_google_rss, timestamp, stats_report)
+    
+    # Optional: Save Combined for backward compatibility or easier viewing
+    # combined = data_yfinance + data_akshare + data_openbb + data_google_rss
+    # _save_report("Report_All.json", combined, timestamp, stats_report)
 
     print(f"\n[DONE] Execution Complete.")
-    print(f"Stats & News written to: {abs_path}")
+    print(f"Reports saved: Report_YFinance.json, Report_Akshare.json, Report_OpenBB.json, Report_GoogleRSS.json")
+
+def _tag_category(news_list, category):
+    for n in news_list:
+        n['category'] = category
+
+def _save_report(filename, data, timestamp, stats):
+    if not data:
+        return # Skip empty reports
+        
+    final_output = {
+        "meta": {
+            "timestamp": timestamp,
+            "count": len(data),
+            "stats": stats # Include full stats in each for context, or filter? Keeping full for now.
+        },
+        "data": data
+    }
+    abs_path = os.path.abspath(filename)
+    save_custom_json(final_output, abs_path)
+    print(f"Saved {abs_path} ({len(data)} items)")
 
 if __name__ == "__main__":
     main()

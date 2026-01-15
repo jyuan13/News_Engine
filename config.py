@@ -19,7 +19,7 @@ import os
 CONFIG = {
     "DAYS_BACK": 7,  # 回溯天数
     "OUTPUT_FILE": "news_result.json",
-    "SERP_API_KEY": os.getenv("SERP_API_KEY"),
+    "SERP_API_KEY": os.getenv("Serp_API_KEY"),
     
     "GROUPS": {
         
