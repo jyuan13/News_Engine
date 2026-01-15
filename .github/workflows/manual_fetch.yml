@@ -23,16 +23,19 @@ jobs:
         
     - name: Run Fetcher Script
       env:
-        SERP_API_KEY: ${{ secrets.SERP_API_KEY }}  # Configured if needed in future
+        SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
+        News_API_KEY: ${{ secrets.NEWS_API_KEY }}
+        GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
+        FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
       run: |
-        python main_fetcher.py
+        python main.py
         
-    - name: Print Output JSON
+    - name: List Output Files
       run: |
-        cat news_result.json
+        ls -l Report_*.json
         
     - name: Upload News Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: news-results
-        path: news_result.json
+        name: news-reports
+        path: Report_*.json
