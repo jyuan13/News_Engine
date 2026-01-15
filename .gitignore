@@ -1,0 +1,16 @@
+# Python Caches
+__pycache__/
+*.pyc
+
+# Tool Caches
+.ruff_cache/
+
+# Local Documentation
+OpenBB_ApiRef/
+
+# Environment Variables (Security)
+.env
+
+# Output Data (Optional - usually don't commit large data files)
+news_result.json
+test_news_result.json

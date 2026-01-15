@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import yfinance as yf
 import akshare as ak
 from config import CONFIG
+from OpenBB_NewsFetcher import OpenBBNewsFetcher
 
 # --- Setup Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -218,6 +219,9 @@ def save_custom_json(data, filepath):
 def main():
     print("--- Starting News Acquisition Engine (Robust) ---")
     
+    # Initialize OpenBB Fetcher
+    obb_fetcher = OpenBBNewsFetcher()
+    
     output_data = {}
     
     # 1. Process Categories
@@ -233,7 +237,18 @@ def main():
             
             # MAPPING LOGIC
             if itype in ["stock_us", "index_us", "stock_hk", "index_hk", "stock_vn", "future_foreign"]:
+                # 1. Existing YFinance Direct
                 fetched = fetch_yfinance_news(val)
+                
+                # 2. OpenBB Fetcher (Add Quantity)
+                try:
+                    obb_news = obb_fetcher.fetch_company_news([val])
+                    if obb_news:
+                        fetched.extend(obb_news)
+                        STATS.update(f"OpenBB({val})", len(obb_news))
+                except Exception as e:
+                    logger.warning(f"OpenBB fetch failed for {val}: {e}")
+                    STATS.update(f"OpenBB({val})", 0, e)
                 
             elif itype in ["stock_zh_a", "etf_zh"]:
                 fetched = fetch_akshare_stock(val)
@@ -255,6 +270,16 @@ def main():
     print("\n>>> Processing General/Macro News")
     output_data["GENERAL"] = []
     output_data["GENERAL"].extend(try_fetch_cls_rolling())
+    
+    # OpenBB World News (Proxy/General)
+    try:
+        obb_world = obb_fetcher.fetch_world_news()
+        if obb_world:
+            output_data["GENERAL"].extend(obb_world)
+            STATS.update("OpenBB World", len(obb_world))
+    except Exception as e:
+        logger.warning(f"OpenBB World News failed: {e}")
+        STATS.update("OpenBB World", 0, e)
 
     # 3. Generate Final Report & Save
     final_output = {
