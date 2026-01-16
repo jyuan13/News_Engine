@@ -4,18 +4,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import threading
+
 class StatsTracker:
     def __init__(self):
         self.stats = {} 
+        self.lock = threading.Lock()
 
     def update(self, source, count, error=None):
-        if source not in self.stats:
-            self.stats[source] = {'count': 0, 'status': 'OK', 'error': None}
-        
-        self.stats[source]['count'] += count
-        if error:
-            self.stats[source]['status'] = 'FAILED'
-            self.stats[source]['error'] = str(error)
+        with self.lock:
+            if source not in self.stats:
+                self.stats[source] = {'count': 0, 'status': 'OK', 'error': None}
+            
+            self.stats[source]['count'] += count
+            if error:
+                self.stats[source]['status'] = 'FAILED'
+                self.stats[source]['error'] = str(error)
     
     def get_report(self):
         return self.stats

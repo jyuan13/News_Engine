@@ -6,10 +6,7 @@ __pycache__/
 .ruff_cache/
 
 # Local Documentation
-OpenBB_ApiRef/
-NewsApi_Ref/
-SerpApi_Ref/
-TheGuardian_Ref/
+Ref/
 
 # Environment Variables (Security)
 .env

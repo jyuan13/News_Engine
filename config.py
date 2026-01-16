@@ -19,6 +19,8 @@ import os
 CONFIG = {
     "DAYS_BACK": 7,  # 回溯天数
     "OUTPUT_FILE": "news_result.json",
+    # [NEW] Feature Flag
+    "ENABLE_GOOGLE_RSS": True, # [OPTIMIZED] Re-enabled with Concurrent scraping + Date Filtering
     "SERP_API_KEY": os.getenv("Serp_API_KEY"),
     
     # ---------------------------------------------------

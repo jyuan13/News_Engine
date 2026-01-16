@@ -25,33 +25,56 @@ class GoogleNewsRSSFetcher:
 
     def fetch(self, query: str, lang: str = "en-US", geo: str = "US", limit: int = 100) -> list[dict]:
         """
-        Fetch news for a keyword/query using Google News RSS + Scraping.
+        Fetch news for a keyword/query using Google News RSS + Scraping (Optimized).
         """
         source_name = f"GoogleRSS ({query})"
         logger.info(f"Fetching {source_name}...")
-        
-        # Build RSS URL
-        # Params: q={query}, hl={lang}, gl={geo}, ceid={geo}:{lang}
-        # optional: when:1h (realtime), but user wants quantity, let's leave default (relevance/recent)
-        # or maybe 'when:24h' to ensure freshness.
         
         encoded_query = urllib.parse.quote(query)
         rss_url = f"{self.base_url}?q={encoded_query}&hl={lang}&gl={geo}&ceid={geo}:{lang.split('-')[0]}"
         
         try:
             feed = feedparser.parse(rss_url)
-            entries = feed.entries[:limit]
+            all_entries = feed.entries
             
-            logger.info(f"Found {len(entries)} items in RSS for {query}. Starting Full-Text Scrape...")
+            # 1. Date Filtering (Pre-filtering)
+            # Only keep items within the last X days (e.g., 7 days)
+            days_back = 7 # Could be configurable, but 7 is standard for this project
+            cutoff_date = datetime.now() - timedelta(days=days_back)
+            
+            valid_entries = []
+            for entry in all_entries:
+                if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                    pub_dt = datetime.fromtimestamp(time.mktime(entry.published_parsed))
+                    if pub_dt >= cutoff_date:
+                        valid_entries.append(entry)
+            
+            # Apply limit after date filtering
+            valid_entries = valid_entries[:limit]
+            
+            logger.info(f"RSS: Found {len(all_entries)} total, {len(valid_entries)} relevant (last {days_back}d). Scraping {len(valid_entries)} items...")
             
             results = []
-            for entry in entries:
-                parsed = self._process_entry(entry, query)
-                if parsed:
-                    results.append(parsed)
+            
+            # 2. Concurrent Scraping
+            # Use ThreadPoolExecutor to download articles in parallel
+            import concurrent.futures
+            
+            # Helper wrapper for thread mapping
+            def scrape_wrapper(entry):
+                return self._process_entry(entry, query)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                # Map entries to threads
+                future_to_entry = {executor.submit(scrape_wrapper, entry): entry for entry in valid_entries}
                 
-                # Be polite to servers when scraping
-                time.sleep(random.uniform(0.5, 1.5))
+                for future in concurrent.futures.as_completed(future_to_entry):
+                    try:
+                        data = future.result()
+                        if data:
+                            results.append(data)
+                    except Exception as exc:
+                        logger.debug(f"Thread generated an exception: {exc}")
                 
             self.stats.update(source_name, len(results))
             return results

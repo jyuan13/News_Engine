@@ -33,83 +33,111 @@ def main():
     data_google_rss_en = []
     data_google_rss_cn = []
 
-    # 2. Process English Sources
-    if "ENGLISH_SOURCES" in CONFIG["GROUPS"]:
-        for cat_name, cat_config in CONFIG["GROUPS"]["ENGLISH_SOURCES"].items():
-            print(f"\n>>> Processing English Category: {cat_name}")
-            
-            for item in cat_config["items"]:
-                val = item["value"]
-                itype = item.get("type", "stock_us")
-                
+    # --- Helper function for concurrent fetching ---
+    def fetch_item(item, cat_name, source_lang="EN"):
+        results = {"yfinance": [], "openbb": [], "akshare": [], "google_en": [], "google_cn": []}
+        val = item["value"]
+        itype = item.get("type", "stock_us")
+        
+        try:
+            if source_lang == "EN":
                 # CASE A: Stocks/Indices (YFinance, OpenBB)
                 if itype in ["stock_us", "index_us", "stock_vn", "future_us"]:
                     # 1. YFinance
                     yf_res = yf_fetcher.fetch(val)
                     if yf_res:
                         _tag_category(yf_res, cat_name)
-                        data_yfinance.extend(yf_res)
+                        results["yfinance"].extend(yf_res)
                     
                     # 2. OpenBB
                     try:
                         obb_news = obb_fetcher.fetch_company_news([val])
                         if obb_news:
                             _tag_category(obb_news, cat_name)
-                            data_openbb.extend(obb_news)
+                            results["openbb"].extend(obb_news)
                             stats_tracker.update(f"OpenBB({val})", len(obb_news))
                     except Exception as e:
                         stats_tracker.update(f"OpenBB({val})", 0, e)
                         
-                # CASE B: Keywords/Topics (Google RSS, Gaurdian)
+                # CASE B: Keywords/Topics (Google RSS)
                 if itype == "keyword" or "desc" in item:
-                    # 1. Google RSS
-                    g_news = google_fetcher.fetch(query=val, lang="en-US", geo="US")
-                    if g_news:
-                        _tag_category(g_news, cat_name)
-                        data_google_rss_en.extend(g_news)
-                    
-                    # 2. Guardian (Disabled)
-                    # guard_news = guardian_fetcher.fetch(query=val)
-                    # if guard_news: data_guardian.extend(guard_news)
+                    if CONFIG.get("ENABLE_GOOGLE_RSS"):
+                        g_news = google_fetcher.fetch(query=val, lang="en-US", geo="US")
+                        if g_news:
+                            _tag_category(g_news, cat_name)
+                            results["google_en"].extend(g_news)
 
-    # 3. Process Chinese Sources
-    if "CHINESE_SOURCES" in CONFIG["GROUPS"]:
-        for cat_name, cat_config in CONFIG["GROUPS"]["CHINESE_SOURCES"].items():
-            print(f"\n>>> Processing Chinese Category: {cat_name}")
-            
-            for item in cat_config["items"]:
-                val = item["value"]
-                itype = item.get("type", "stock_hk")
-                
+            elif source_lang == "CN":
                 if itype in ["stock_hk", "stock_zh_a", "etf_zh"]:
                     # Akshare
                     ak_news = ak_fetcher.fetch_stock_news(val)
                     if ak_news:
                         _tag_category(ak_news, cat_name)
-                        data_akshare.extend(ak_news)
+                        results["akshare"].extend(ak_news)
                     
                     # Google RSS (CN)
-                    name_query = item.get("name", val)
-                    g_news_cn = google_fetcher.fetch(query=name_query, lang="zh-CN", geo="CN", limit=30)
-                    if g_news_cn:
-                        _tag_category(g_news_cn, cat_name)
-                        data_google_rss_cn.extend(g_news_cn)
+                    if CONFIG.get("ENABLE_GOOGLE_RSS"):
+                        name_query = item.get("name", val)
+                        g_news_cn = google_fetcher.fetch(query=name_query, lang="zh-CN", geo="CN", limit=30)
+                        if g_news_cn:
+                            _tag_category(g_news_cn, cat_name)
+                            results["google_cn"].extend(g_news_cn)
 
                 elif itype == "keyword":
                     # Google RSS (CN)
-                    g_news_cn = google_fetcher.fetch(query=val, lang="zh-CN", geo="CN")
-                    if g_news_cn:
-                        _tag_category(g_news_cn, cat_name)
-                        data_google_rss_cn.extend(g_news_cn)
+                    if CONFIG.get("ENABLE_GOOGLE_RSS"):
+                        g_news_cn = google_fetcher.fetch(query=val, lang="zh-CN", geo="CN")
+                        if g_news_cn:
+                            _tag_category(g_news_cn, cat_name)
+                            results["google_cn"].extend(g_news_cn)
+        except Exception as e:
+            logger.error(f"Error processing item {val}: {e}")
+            
+        return results
 
-    # 4. General/Macro
+    # 2. Process English Sources (Concurrent)
+    import concurrent.futures
+    if "ENGLISH_SOURCES" in CONFIG["GROUPS"]:
+        items_to_process = []
+        for cat_name, cat_config in CONFIG["GROUPS"]["ENGLISH_SOURCES"].items():
+            for item in cat_config["items"]:
+                items_to_process.append((item, cat_name, "EN"))
+        
+        print(f"\n>>> Processing English Sources Concurrent ({len(items_to_process)} items)...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(fetch_item, item, cat, lang) for item, cat, lang in items_to_process]
+            for future in concurrent.futures.as_completed(futures):
+                res = future.result()
+                data_yfinance.extend(res["yfinance"])
+                data_openbb.extend(res["openbb"])
+                data_google_rss_en.extend(res["google_en"])
+
+    # 3. Process Chinese Sources (Concurrent)
+    if "CHINESE_SOURCES" in CONFIG["GROUPS"]:
+        items_to_process_cn = []
+        for cat_name, cat_config in CONFIG["GROUPS"]["CHINESE_SOURCES"].items():
+            for item in cat_config["items"]:
+                items_to_process_cn.append((item, cat_name, "CN"))
+                
+        print(f"\n>>> Processing Chinese Sources Concurrent ({len(items_to_process_cn)} items)...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(fetch_item, item, cat, lang) for item, cat, lang in items_to_process_cn]
+            for future in concurrent.futures.as_completed(futures):
+                res = future.result()
+                data_akshare.extend(res["akshare"])
+                data_google_rss_cn.extend(res["google_cn"])
+
+    # 4. General/Macro (Sequential)
     print("\n>>> Processing General/Macro News")
     
-    # Akshare Rolling
-    rolling = ak_fetcher.fetch_rolling_news()
-    if rolling:
-        _tag_category(rolling, "GENERAL")
-        data_akshare.extend(rolling)
+    # Akshare Rolling (Keep sequential as it is a single big call)
+    try:
+        rolling = ak_fetcher.fetch_rolling_news()
+        if rolling:
+            _tag_category(rolling, "GENERAL")
+            data_akshare.extend(rolling)
+    except Exception as e:
+        logger.warning(f"Akshare Rolling failed: {e}")
     
     # OpenBB World
     try:
@@ -121,14 +149,15 @@ def main():
         logger.warning(f"OpenBB World News failed: {e}")
         
     # Google RSS World
-    w1 = google_fetcher.fetch("World Economy", limit=50)
-    w2 = google_fetcher.fetch("Artificial Intelligence", limit=50)
-    if w1: 
-        _tag_category(w1, "GENERAL")
-        data_google_rss_en.extend(w1)
-    if w2:
-        _tag_category(w2, "GENERAL")
-        data_google_rss_en.extend(w2)
+    if CONFIG.get("ENABLE_GOOGLE_RSS"):
+        w1 = google_fetcher.fetch("World Economy", limit=50)
+        w2 = google_fetcher.fetch("Artificial Intelligence", limit=50)
+        if w1: 
+            _tag_category(w1, "GENERAL")
+            data_google_rss_en.extend(w1)
+        if w2:
+            _tag_category(w2, "GENERAL")
+            data_google_rss_en.extend(w2)
 
     # 5. Save Raw Reports (Combined Google RSS)
     timestamp = str(datetime.now())
