@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime, timedelta
-from utils_data import StatsTracker
+from utils.utils_data import StatsTracker
 import requests
 
 # Optional Imports (Graceful Failures handled in __init__)

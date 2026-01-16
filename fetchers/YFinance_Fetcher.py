@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 import yfinance as yf
 from config import CONFIG
-from utils_data import StatsTracker
+from utils.utils_data import StatsTracker
 
 logger = logging.getLogger(__name__)
 

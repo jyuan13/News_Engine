@@ -21,6 +21,25 @@ CONFIG = {
     "OUTPUT_FILE": "news_result.json",
     "SERP_API_KEY": os.getenv("Serp_API_KEY"),
     
+    # ---------------------------------------------------
+    # Data Cleaning / Deduplication Configuration
+    # ---------------------------------------------------
+    "CLEANING": {
+        "ENABLED": True,
+        
+        "ENGLISH": {
+            # Options: "all-MiniLM-L6-v2" (Fast/Eng), "paraphrase-multilingual-MiniLM-L12-v2" (Multi)
+            "MODEL_NAME": "paraphrase-multilingual-MiniLM-L12-v2", 
+            "SIMILARITY_THRESHOLD": 0.85, 
+        },
+        
+        "CHINESE": {
+            # Options: "shibing624/text2vec-base-chinese", "BAAI/bge-large-zh-v1.5", "paraphrase-multilingual-MiniLM-L12-v2"
+            "MODEL_NAME": "paraphrase-multilingual-MiniLM-L12-v2", 
+            "SIMILARITY_THRESHOLD": 0.85, 
+        }
+    },
+
     "GROUPS": {
         
         # =========================================================================

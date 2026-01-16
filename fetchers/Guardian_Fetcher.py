@@ -2,7 +2,7 @@ import logging
 import requests
 import os
 from datetime import datetime, timedelta
-from utils_data import StatsTracker
+from utils.utils_data import StatsTracker
 import time
 
 logger = logging.getLogger(__name__)

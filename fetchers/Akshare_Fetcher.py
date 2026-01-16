@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timedelta
 import akshare as ak
 from config import CONFIG
-from utils_data import StatsTracker
+from utils.utils_data import StatsTracker
 
 logger = logging.getLogger(__name__)
 
