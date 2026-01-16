@@ -62,7 +62,8 @@ def main():
                 # CASE B: Keywords/Topics (Google RSS)
                 if itype == "keyword" or "desc" in item:
                     if CONFIG.get("ENABLE_GOOGLE_RSS"):
-                        g_news = google_fetcher.fetch(query=val, lang="en-US", geo="US")
+                        # [USER REQUEST] Increase limit to 1000, let date filter handle relevance
+                        g_news = google_fetcher.fetch(query=val, lang="en-US", geo="US", limit=1000)
                         if g_news:
                             _tag_category(g_news, cat_name)
                             results["google_en"].extend(g_news)
@@ -78,7 +79,8 @@ def main():
                     # Google RSS (CN)
                     if CONFIG.get("ENABLE_GOOGLE_RSS"):
                         name_query = item.get("name", val)
-                        g_news_cn = google_fetcher.fetch(query=name_query, lang="zh-CN", geo="CN", limit=30)
+                        # [USER REQUEST] Increase limit to 1000
+                        g_news_cn = google_fetcher.fetch(query=name_query, lang="zh-CN", geo="CN", limit=1000)
                         if g_news_cn:
                             _tag_category(g_news_cn, cat_name)
                             results["google_cn"].extend(g_news_cn)
@@ -86,7 +88,8 @@ def main():
                 elif itype == "keyword":
                     # Google RSS (CN)
                     if CONFIG.get("ENABLE_GOOGLE_RSS"):
-                        g_news_cn = google_fetcher.fetch(query=val, lang="zh-CN", geo="CN")
+                        # [USER REQUEST] Increase limit to 1000
+                        g_news_cn = google_fetcher.fetch(query=val, lang="zh-CN", geo="CN", limit=1000)
                         if g_news_cn:
                             _tag_category(g_news_cn, cat_name)
                             results["google_cn"].extend(g_news_cn)
@@ -150,8 +153,9 @@ def main():
         
     # Google RSS World
     if CONFIG.get("ENABLE_GOOGLE_RSS"):
-        w1 = google_fetcher.fetch("World Economy", limit=50)
-        w2 = google_fetcher.fetch("Artificial Intelligence", limit=50)
+        # [USER REQUEST] Increase limit to 1000
+        w1 = google_fetcher.fetch("World Economy", limit=1000)
+        w2 = google_fetcher.fetch("Artificial Intelligence", limit=1000)
         if w1: 
             _tag_category(w1, "GENERAL")
             data_google_rss_en.extend(w1)
