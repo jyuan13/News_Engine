@@ -232,6 +232,7 @@ def _save_report(filename, data, timestamp, stats):
         "data": data
     }
     abs_path = os.path.abspath(os.path.join("data", filename))
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
     save_custom_json(final_output, abs_path)
     print(f"Saved {abs_path} ({len(data)} items)")
 
