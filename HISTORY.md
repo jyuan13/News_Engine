@@ -1,5 +1,10 @@
 # Project History
 
+## v2.0.1 (2026-01-17) - Quality & Format Fixes
+- **Fix**: **Data Quality**. Implemented strict validation in `DataCleaner` and `GoogleNews_RSS_Fetcher` to remove "garbage" items (generic "Google News" titles, empty content).
+- **Refinement**: **Email Output**. Removed verbose stats, added "Raw Data" section to email body.
+- **Fix**: Corrected return values of Collectors to ensure `raw_data` is passed to reports.
+
 ## v2.0.0 (2026-01-17) - 7-Layer Architecture Refactoring
 **Major architectural overhaul to improve scalability and maintainability.**
 - **Refactoring**: Split monolithic scripts into 7 layers (`DataSources`, `Collectors`, `Processors`, `Formatters`, `Core`, `Dispatchers`).

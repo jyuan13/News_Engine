@@ -113,10 +113,20 @@ class GoogleNewsRSSFetcher:
                  # If full text is too short or empty, fallback to summary
                  full_text = entry.get('summary', '') or article.text
             
+            # Title Fallback Logic
+            title = article.title
+            if not title or title.strip().lower() in ["google news", "google", "news"]:
+                title = entry.title
+
+            # Final Quality Check
+            if not title or not full_text or len(full_text) < 20:
+                logger.debug(f"Skipping low quality item: {url}")
+                return None
+
             # 4. Return Normalized Data
             return {
                 "source": "GoogleNews (FullText)",
-                "title": article.title or entry.title,
+                "title": title,
                 "published_date": self._parse_date(entry),
                 "author": article.authors,
                 "content": full_text, # PRIORITY: Full Text

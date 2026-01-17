@@ -41,6 +41,27 @@ class DataCleaner:
             except Exception as e:
                 logger.error(f"Failed to load cleaning models: {e}")
                 self.enabled = False
+    
+    def _is_valid(self, item) -> bool:
+        """
+        Check if an item is valid/high-quality enough to be included.
+        """
+        title = item.get('title', '').strip()
+        content = item.get('content', '').strip()
+        
+        # 1. Check for Empty Fields
+        if not title or not content:
+            return False
+            
+        # 2. Check for Generic Titles (Google News artifacts)
+        if title.lower() in ["google news", "google", "news"]:
+            return False
+            
+        # 3. Check Content Length
+        if len(content) < 50:
+            return False
+            
+        return True
 
     def clean_data(self, data_map: dict, language: str = "ENGLISH") -> dict:
         """
@@ -69,6 +90,10 @@ class DataCleaner:
         
         for source_key, items in data_map.items():
             for idx, item in enumerate(items):
+                # Validation / Quality Check
+                if not self._is_valid(item):
+                    continue
+
                 text = f"{item.get('title', '')}. {item.get('content', '')[:200]}" 
                 all_items.append(text)
                 references.append({
