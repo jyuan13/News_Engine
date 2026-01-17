@@ -1,7 +1,22 @@
 name: Manual News Fetch
 
 on:
-  workflow_dispatch: # Allows manual triggering from GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      collector:
+        description: 'Collector to run (e.g. US_TECH, ALL)'
+        required: true
+        default: 'ALL'
+        type: choice
+        options:
+        - ALL
+        - US_TECH
+        - COMMODITIES
+        - VIETNAM
+        - MACRO
+        - HK_TECH
+        - HK_PHARMA
+        - STAR50
 
 jobs:
   fetch_news:
@@ -27,15 +42,19 @@ jobs:
         News_API_KEY: ${{ secrets.NEWS_API_KEY }}
         GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
         FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+        # Email Credentials
+        SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+        SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+        RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
       run: |
-        python main.py
+        python main.py --collector=${{ github.event.inputs.collector }}
         
     - name: List Output Files
       run: |
-        ls -l Report_*.json
+        ls -l data/
         
     - name: Upload News Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: news-reports
-        path: Report_*.json
+        path: data/*.json
