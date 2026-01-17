@@ -31,43 +31,39 @@ COLLECTOR_MAP = {
     "STAR50": {"class": Star50Collector, "name": "科创50与芯片"}
 }
 
-def run_collector(key, bus):
+def run_collector(key):
     """
-    Executes a single collector and publishes results via MessageBus.
+    Executes a single collector and returns the data and metadata.
+    Does NOT publish to MessageBus directly.
     """
     cfg = COLLECTOR_MAP.get(key)
     if not cfg:
         logger.error(f"Unknown collector key: {key}")
-        return
+        return None, None
 
     logger.info(f"🟢 Starting Collector: {key} ({cfg['name']})")
     try:
         collector = cfg["class"]()
-        # Run Collection -> Returns (CleanedData, Filename)
-        # Note: BaseCollector.run() in subclasses returns (data, filename)
-        
-        # We need to make sure subclasses actually return this. 
-        # I implemented them to return (cleaned_data, filename). 
-        # Let's double check... Yes I did.
-        
+        # Run Collection -> Returns (data_json, filename)
         data_json, filename = collector.run()
         
         if not data_json or "data" not in data_json or not data_json["data"]:
-            logger.warning(f"⚠️ No data collected for {key}. Skipping email.")
-            return
+            logger.warning(f"⚠️ No data collected for {key}.")
+            return None, None
 
-        # Prepare Metadata for MessageBus
+        # Prepare Metadata
         meta = {
             "date": datetime.now().strftime("%Y-%m-%d"),
-            "filename": os.path.abspath(os.path.join("data", filename))
+            "filename": os.path.abspath(os.path.join("data", filename)),
+            "group_name": cfg['name'],
+            "key": key
         }
-
-        # Publish to MessageBus (trigger Email)
-        logger.info(f"📨 Publishing to MessageBus: {cfg['name']}")
-        bus.publish(topic=cfg['name'], data=data_json, meta=meta)
+        
+        return data_json, meta
         
     except Exception as e:
         logger.error(f"❌ Error running {key}: {e}", exc_info=True)
+        return None, None
 
 def main():
     parser = argparse.ArgumentParser(description="News Engine CLI")
@@ -78,15 +74,63 @@ def main():
     bus = MessageBus()
 
     target = args.collector.upper()
+    collector_keys = []
     
     if target == "ALL":
-        for key in COLLECTOR_MAP.keys():
-            run_collector(key, bus)
+        collector_keys = list(COLLECTOR_MAP.keys())
     else:
         if target in COLLECTOR_MAP:
-            run_collector(target, bus)
+            collector_keys = [target]
         else:
             logger.error(f"Invalid collector: {target}. Available: {list(COLLECTOR_MAP.keys())}")
+            return
+
+    # 1. Collection Phase
+    collected_results = {} # { key: {data: ..., meta: ...} }
+    
+    for key in collector_keys:
+        data, meta = run_collector(key)
+        if data and meta:
+            collected_results[key] = {"data": data, "meta": meta}
+
+    if not collected_results:
+        logger.warning("No data collected from any source. Exiting.")
+        return
+
+    # 2. Dispatch/Notification Phase
+    logger.info("📨 Starting Dispatch Phase...")
+    
+    # Determine Subject Line dynamically
+    active_names = [res["meta"]["group_name"] for res in collected_results.values()]
+    unique_names = list(set(active_names))
+    
+    if len(unique_names) == 1:
+        subject = f"{unique_names[0]}日报"
+    elif len(unique_names) == 2:
+        subject = f"{unique_names[0]} & {unique_names[1]}日报"
+    else:
+        subject = f"News Engine 此刻采集报告 ({len(unique_names)}板块)" # Default for many
+
+    # Publish Once
+    # We pass the entire dictionary of results to the MessageBus
+    # The topic here is mainly for the Email Subject if not overridden, but we'll modify the message payload structure
+    
+    # Construct a Unified Payload
+    unified_payload = {
+        "is_unified": True,
+        "subject": subject,
+        "results": collected_results, # Keyed by collector key (US_TECH, etc)
+        "meta": {
+            "timestamp": datetime.now().isoformat(),
+            "collector_count": len(collected_results)
+        }
+    }
+    
+    # We use a special topic "UNIFIED_REPORT" or just rely on the bus to handle it.
+    # Since MessageBus might expect (topic, data, meta), let's adapt.
+    
+    logger.info(f"🚀 Dispatching Unified Report: {subject}")
+    bus.publish(topic=subject, data=unified_payload, meta={})
 
 if __name__ == "__main__":
     main()

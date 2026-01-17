@@ -23,101 +23,149 @@ class EmailFormatter:
 
     def format_html(self, data, title="News Report"):
         """
-        Converts the standardized JSON report into an HTML email body.
+        Converts the standardized JSON report OR Unified Multi-Group payload into an HTML email body.
+        Payload Structure:
+        {
+            "is_unified": True,
+            "subject": ...,
+            "results": {
+                "KEY": { "data": {...}, "meta": {...} },
+                "KEY2": ...
+            },
+            ...
+        }
         """
-        if not data or "data" not in data:
+        if not data:
             return "<html><body><p>No data available.</p></body></html>"
 
-        news_items = data["data"]
-        meta = data.get("meta", {})
-        
-        # Sort by date (descending)
-        # news_items.sort(key=lambda x: x.get('pubDate', ''), reverse=True)
-
-        # Helper to generate table rows
-        def generate_rows(items):
-            rows = ""
-            for item in items:
-                title = item.get('title', 'No Title')
-                source = item.get('source', 'Unknown')
-                # Handle varying date keys
-                pdate = item.get('published_date') or item.get('publish_time') or 'N/A'
-                link = item.get('link') or item.get('url') or '#'
-                content = item.get('content', '') or item.get('summary', '') or ''
-                
-                # Truncate content for display
-                if len(content) > 300:
-                    content = content[:300] + "..."
-                
-                rows += f"""
-                <tr>
-                    <td class="meta-col">
-                        <div class="source">{source}</div>
-                        <div class="date">{pdate}</div>
-                    </td>
-                    <td class="content-col">
-                        <div class="title"><a href="{link}">{title}</a></div>
-                        <div class="summary">{content}</div>
-                    </td>
-                </tr>
-                """
-            return rows
-
-        cleaned_rows = generate_rows(news_items)
-        
-        # Raw Data Handling
-        raw_items = data.get('raw_data', [])
-        raw_section = ""
-        if raw_items:
-            # Sort raw items if possible? Keeping original order for now.
-            raw_rows = generate_rows(raw_items)
-            raw_section = f"""
-            <h3>Part 2: Raw Data (Pre-Cleaning) - {len(raw_items)} Items</h3>
-            <table>
-                <thead>
+        # helper
+        def generate_section_html(group_key, group_data, group_meta):
+            news_items = group_data.get("data", [])
+            raw_items = group_data.get("raw_data", [])
+            group_name = group_meta.get("group_name", group_key)
+            
+            # Helper to generate table rows
+            def generate_rows(items):
+                rows = ""
+                for item in items:
+                    item_title = item.get('title', 'No Title')
+                    source = item.get('source', 'Unknown')
+                    # Handle varying date keys
+                    pdate = item.get('published_date') or item.get('publish_time') or 'N/A'
+                    link = item.get('link') or item.get('url') or '#'
+                    content = item.get('content', '') or item.get('summary', '') or ''
+                    
+                    # Truncate content
+                    if len(content) > 300:
+                        content = content[:300] + "..."
+                    
+                    rows += f"""
                     <tr>
-                        <th style="width: 15%">Meta</th>
-                        <th style="width: 85%">News Content</th>
+                        <td class="meta-col">
+                            <div class="source">{source}</div>
+                            <div class="date">{pdate}</div>
+                        </td>
+                        <td class="content-col">
+                            <div class="title"><a href="{link}">{item_title}</a></div>
+                            <div class="summary">{content}</div>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    {raw_rows}
-                </tbody>
-            </table>
-            """
+                    """
+                return rows
 
-        html = f"""
+            cleaned_rows = generate_rows(news_items)
+            raw_rows = generate_rows(raw_items) if raw_items else ""
+
+            # Build Section HTML
+            raw_section_html = ""
+            if raw_items:
+                raw_section_html = f"""
+                <div class="raw-section">
+                    <h4>📝 Raw Data ({len(raw_items)} items) - {group_name}</h4>
+                    <details>
+                        <summary>Click to expand raw data</summary>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 15%">Meta</th>
+                                    <th style="width: 85%">News Content</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {raw_rows}
+                            </tbody>
+                        </table>
+                    </details>
+                </div>
+                """
+
+            html_part = f"""
+            <div class="group-container" style="margin-top: 30px; border-top: 3px solid #3498db; padding-top: 10px;">
+                <h2 style="color: #2c3e50;">📌 {group_name}</h2>
+                <div class="meta">
+                    Cleaned: {len(news_items)} | Raw: {len(raw_items)}
+                </div>
+                
+                <h3>✅ Cleaned Highlights</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 15%">Meta</th>
+                            <th style="width: 85%">News Content</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {cleaned_rows}
+                    </tbody>
+                </table>
+                {raw_section_html}
+            </div>
+            """
+            return html_part
+
+        # Main Logic ----------------------------------------------------------
+        content_body = ""
+        meta_info = ""
+        
+        # Determine if it's a Unified payload or Legacy single payload
+        if data.get("is_unified"):
+            # Unified Multi-Group
+            results_map = data.get("results", {})
+            title = data.get("subject", title)
+            
+            # Summarize Stats
+            total_groups = len(results_map)
+            meta_info = f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M')} | Total Groups: {total_groups}"
+            
+            # Iterate groups
+            for key, res in results_map.items():
+                g_data = res["data"]
+                g_meta = res["meta"]
+                content_body += generate_section_html(key, g_data, g_meta)
+                
+        else:
+            # Legacy Single Payload (fallback if called directly)
+            # Wrap it to reuse logic
+            content_body += generate_section_html("News Report", data, data.get("meta", {}))
+            meta_info = f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+        final_html = f"""
         <html>
         <head>{self.css}</head>
         <body>
-            <h2>{title}</h2>
-            <div class="meta">
-                Generated at: {meta.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M'))}<br>
-                Total Cleaned: {meta.get('count', len(news_items))}<br>
-                Total Raw: {len(raw_items)}
+            <h1 style="color: #2c3e50; text-align: center;">{title}</h1>
+            <div class="meta" style="text-align: center;">
+                {meta_info}
             </div>
             
-            <h3>Part 1: Cleaned Data - {len(news_items)} Items</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 15%">Meta</th>
-                        <th style="width: 85%">News Content</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {cleaned_rows}
-                </tbody>
-            </table>
+            {content_body}
             
-            {raw_section}
-            
-            <div class="footer">
+            <div class="footer" style="margin-top: 50px; text-align: center; color: #95a5a6; border-top: 1px solid #eee; padding-top: 20px;">
                 Powered by News Engine 7-Layer Architecture
             </div>
         </body>
         </html>
         """
-        return html
+        return final_html
 
 
