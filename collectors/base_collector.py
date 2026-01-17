@@ -42,15 +42,16 @@ class BaseCollector:
         if "stock" in itype or "index" in itype or "etf" in itype or "future" in itype:
             # 1. YFinance
             if itype in ["stock_us", "index_us", "index_hk", "etf_zh", "future_foreign", "stock_hk", "stock_vn"]:
-                # Note: mapped types for YFinance
-                yf_news = self.yf_fetcher.fetch_news(val)
+                # PROPER METHOD NAME: fetch
+                yf_news = self.yf_fetcher.fetch(val)
                 if yf_news:
                     self._tag(yf_news, cat_name)
                     fetched_data.extend(yf_news)
 
             # 2. AkShare
             if itype in ["stock_zh_a", "etf_zh", "index_hk", "stock_hk"]:
-                ak_news = self.ak_fetcher.fetch_individual_stock_news(val)
+                # PROPER METHOD NAME: fetch_stock_news
+                ak_news = self.ak_fetcher.fetch_stock_news(val)
                 if ak_news:
                     self._tag(ak_news, cat_name)
                     fetched_data.extend(ak_news)
@@ -157,4 +158,4 @@ class BaseCollector:
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         save_custom_json(final_output, abs_path)
         self.logger.info(f"Saved {abs_path}")
-        return abs_path
+        return final_output, abs_path
