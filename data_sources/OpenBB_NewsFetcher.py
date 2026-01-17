@@ -9,8 +9,9 @@ except ImportError:
     obb = None
 
 class OpenBBNewsFetcher:
-    def __init__(self):
+    def __init__(self, stats_tracker=None):
         self.logger = logging.getLogger("OpenBBNewsFetcher")
+        self.stats = stats_tracker
         self._check_api_keys()
 
     def _check_api_keys(self):
