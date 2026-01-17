@@ -152,7 +152,7 @@ CONFIG = {
                     # --- Keywords (CN/EN Mixed from user list) ---
                     {"value": "黄金", "name": "黄金(CN)", "type": "keyword"},
                     {"value": "Gold", "name": "Gold", "type": "keyword"},
-                    {"value": "TIPS", "name": "TIPS", "type": "keyword"},
+                    {"value": "TIPS Bond", "name": "TIPS Bond", "type": "keyword"},
                     {"value": "实际利率", "name": "实际利率", "type": "keyword"},
                     {"value": "美元指数", "name": "美元指数", "type": "keyword"},
                     {"value": "DXY", "name": "DXY", "type": "keyword"},
