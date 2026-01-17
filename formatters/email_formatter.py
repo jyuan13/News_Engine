@@ -34,6 +34,19 @@ class EmailFormatter:
         # Sort by date (descending)
         # news_items.sort(key=lambda x: x.get('pubDate', ''), reverse=True)
 
+        # Stats Summary
+        stats_data = meta.get('stats', {})
+        stats_html = ""
+        if stats_data:
+            unique_sources = set()
+            total_fetched = 0
+            stats_html = "<div style='margin-bottom: 20px; font-size: 11px; color: #555;'><strong>Source Summary:</strong><br>"
+            for src, info in stats_data.items():
+                count = info.get('count', 0)
+                if count > 0:
+                     stats_html += f"{src}: {count} | "
+            stats_html += "</div>"
+
         html = f"""
         <html>
         <head>{self.css}</head>
@@ -41,8 +54,9 @@ class EmailFormatter:
             <h2>{title}</h2>
             <div class="meta">
                 Generated at: {meta.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M'))}<br>
-                Total Items: {meta.get('count', len(news_items))}<br>
-                Stats: {json.dumps(meta.get('stats', {}), ensure_ascii=False)}
+                Total Items (Cleaned): {meta.get('count', len(news_items))}<br>
+                Raw Items Fetched: {meta.get('raw_count', 'N/A')}<br>
+                {stats_html}
             </div>
             
             <table>

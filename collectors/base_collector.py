@@ -145,14 +145,16 @@ class BaseCollector:
         cleaned_map = self.cleaner.clean_data(mapped_data, language=language)
         return cleaned_map.get("RawData", [])
 
-    def save_report(self, filename, data, stats_report):
+    def save_report(self, filename, cleaned_data, stats_report, raw_data=None):
         final_output = {
             "meta": {
                 "timestamp": datetime.now().isoformat(),
-                "count": len(data),
+                "count": len(cleaned_data),
+                "raw_count": len(raw_data) if raw_data else 0,
                 "stats": stats_report
             },
-            "data": data
+            "data": cleaned_data,
+            "raw_data": raw_data or []
         }
         abs_path = os.path.abspath(os.path.join("data", filename))
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)

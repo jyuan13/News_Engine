@@ -10,4 +10,4 @@ class USTechCollector(BaseCollector):
         
         # Save
         filename = "Report_US_Tech.json"
-        return self.save_report(filename, cleaned_data, self.stats.stats)
+        return self.save_report(filename, cleaned_data, self.stats.stats, raw_data=raw_data)
