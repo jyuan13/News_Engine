@@ -34,31 +34,45 @@ class EmailFormatter:
         # Sort by date (descending)
         # news_items.sort(key=lambda x: x.get('pubDate', ''), reverse=True)
 
-        # Stats Summary
-        stats_data = meta.get('stats', {})
-        stats_html = ""
-        if stats_data:
-            unique_sources = set()
-            total_fetched = 0
-            stats_html = "<div style='margin-bottom: 20px; font-size: 11px; color: #555;'><strong>Source Summary:</strong><br>"
-            for src, info in stats_data.items():
-                count = info.get('count', 0)
-                if count > 0:
-                     stats_html += f"{src}: {count} | "
-            stats_html += "</div>"
+        # Helper to generate table rows
+        def generate_rows(items):
+            rows = ""
+            for item in items:
+                title = item.get('title', 'No Title')
+                source = item.get('source', 'Unknown')
+                # Handle varying date keys
+                pdate = item.get('published_date') or item.get('publish_time') or 'N/A'
+                link = item.get('link') or item.get('url') or '#'
+                content = item.get('content', '') or item.get('summary', '') or ''
+                
+                # Truncate content for display
+                if len(content) > 300:
+                    content = content[:300] + "..."
+                
+                rows += f"""
+                <tr>
+                    <td class="meta-col">
+                        <div class="source">{source}</div>
+                        <div class="date">{pdate}</div>
+                    </td>
+                    <td class="content-col">
+                        <div class="title"><a href="{link}">{title}</a></div>
+                        <div class="summary">{content}</div>
+                    </td>
+                </tr>
+                """
+            return rows
 
-        html = f"""
-        <html>
-        <head>{self.css}</head>
-        <body>
-            <h2>{title}</h2>
-            <div class="meta">
-                Generated at: {meta.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M'))}<br>
-                Total Items (Cleaned): {meta.get('count', len(news_items))}<br>
-                Raw Items Fetched: {meta.get('raw_count', 'N/A')}<br>
-                {stats_html}
-            </div>
-            
+        cleaned_rows = generate_rows(news_items)
+        
+        # Raw Data Handling
+        raw_items = data.get('raw_data', [])
+        raw_section = ""
+        if raw_items:
+            # Sort raw items if possible? Keeping original order for now.
+            raw_rows = generate_rows(raw_items)
+            raw_section = f"""
+            <h3>Part 2: Raw Data (Pre-Cleaning) - {len(raw_items)} Items</h3>
             <table>
                 <thead>
                     <tr>
@@ -67,44 +81,43 @@ class EmailFormatter:
                     </tr>
                 </thead>
                 <tbody>
-        """
-
-        for item in news_items:
-            source = item.get("source", "Unknown")
-            pub_date = item.get("pubDate", "")
-            title_text = item.get("title", "No Title")
-            content = item.get("content", "")
-            if not content: content = item.get("description", "")
-            
-            # Semantic Info
-            semantic_info = ""
-            if item.get("semantic_dedup"):
-               semantic_info = f"<br><span class='tag tag-dup'>Merged: {item.get('semantic_count', 1)}</span>"
-
-            # Check if URL exists (we removed link field in previous step but maybe we want it back for clickable titles?)
-            # The previous step removed 'link' BUT specific fetchers might still have 'link' in raw data before saving?
-            # Actually main.py _save_report removed it.
-            # Ideally collectors should keep it until saving.
-            
-            html += f"""
-                <tr>
-                    <td>
-                        <div class="source">{source}</div>
-                        <div class="date">{pub_date}</div>
-                        {semantic_info}
-                    </td>
-                    <td>
-                        <strong>{title_text}</strong>
-                        <p>{content}</p>
-                    </td>
-                </tr>
-            """
-
-        html += """
+                    {raw_rows}
                 </tbody>
             </table>
-            <p style="font-size: 10px; color: #bdc3c7;">Powered by News Engine 7-Layer Architecture</p>
+            """
+
+        html = f"""
+        <html>
+        <head>{self.css}</head>
+        <body>
+            <h2>{title}</h2>
+            <div class="meta">
+                Generated at: {meta.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M'))}<br>
+                Total Cleaned: {meta.get('count', len(news_items))}<br>
+                Total Raw: {len(raw_items)}
+            </div>
+            
+            <h3>Part 1: Cleaned Data - {len(news_items)} Items</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 15%">Meta</th>
+                        <th style="width: 85%">News Content</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {cleaned_rows}
+                </tbody>
+            </table>
+            
+            {raw_section}
+            
+            <div class="footer">
+                Powered by News Engine 7-Layer Architecture
+            </div>
         </body>
         </html>
         """
         return html
+
+
