@@ -130,6 +130,7 @@ CONFIG = {
                     {"value": "超微电脑", "name": "超微电脑(CN)", "type": "keyword"},
                     {"value": "OBBBA", "name": "OBBBA", "type": "keyword"},
                     {"value": "OBBBA法案", "name": "OBBBA法案", "type": "keyword"},
+                    {"value": "大而美法案", "name": "大而美法案", "type": "keyword"},
                     {"value": "Busan Consensus", "name": "Busan Consensus", "type": "keyword"},
                     {"value": "釜山协议", "name": "釜山协议", "type": "keyword"},
                 ]

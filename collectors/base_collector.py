@@ -28,7 +28,7 @@ class BaseCollector:
         self.config = config.CONFIG
         self.results = []
     
-    def fetch_item(self, item, cat_name):
+    def fetch_item(self, item, cat_name, start_date=None, end_date=None):
         """
         Generic fetch logic refactored from main.py
         """
@@ -43,6 +43,8 @@ class BaseCollector:
             # 1. YFinance
             if itype in ["stock_us", "index_us", "index_hk", "etf_zh", "future_foreign", "stock_hk", "stock_vn"]:
                 # PROPER METHOD NAME: fetch
+                # Note: YFetcher likely does not support historical yet. 
+                # We prioritize GoogleRSS for history anyway as per plan.
                 yf_news = self.yf_fetcher.fetch(val)
                 if yf_news:
                     self._tag(yf_news, cat_name)
@@ -51,6 +53,7 @@ class BaseCollector:
             # 2. AkShare
             if itype in ["stock_zh_a", "etf_zh", "index_hk", "stock_hk"]:
                 # PROPER METHOD NAME: fetch_stock_news
+                # Akshare typically returns latest.
                 ak_news = self.ak_fetcher.fetch_stock_news(val)
                 if ak_news:
                     self._tag(ak_news, cat_name)
@@ -67,27 +70,16 @@ class BaseCollector:
         if itype == "keyword" or "desc" in item:
             # 1. Google RSS (Massive)
             if self.config.get("ENABLE_GOOGLE_RSS"):
-                # Determine Lang/Geo based on some heuristic or input?
-                # For now assume mixed, but specialized collectors can override
-                # Default to English (US) unless explicitly Chinese context
-                
-                # Heuristic: Check if Name has Chinese chars? Or just run both?
-                # Simplest: Run based on item content or Collector settings. 
-                # Let's default to EN-US for general, but subclasses can override behavior.
-                # Actually, main.py checks "GoogleRSS (CN)" logic. 
-                # Here we try to be smart.
-                
+                # Determine Lang/Geo...
                 limit = 1000 
                 
                 # Try English Fetch
-                g_news = self.google_fetcher.fetch(query=val, lang="en-US", geo="US", limit=limit)
+                # PASS DATES HERE
+                g_news = self.google_fetcher.fetch(query=val, lang="en-US", geo="US", limit=limit, start_date=start_date, end_date=end_date)
                 if g_news:
                     self._tag(g_news, cat_name)
                     fetched_data.extend(g_news)
 
-                # Try Chinese Fetch (if name different or explicitly requested? main.py did both if needed)
-                # For now, let's just do base fetching.
-                
                 # 2. Guardian (High Quality)
                 if self.config.get("GUARD_API_KEY") or os.getenv("GUARDIAN_API_KEY"):
                      guardian_news = self.guardian_fetcher.fetch(query=val)
@@ -101,7 +93,7 @@ class BaseCollector:
         for n in news_list:
             n['category'] = category
 
-    def collect_group(self, group_key):
+    def collect_group(self, group_key, start_date=None, end_date=None):
         """
         Main orchestration for a config group.
         """
@@ -118,14 +110,15 @@ class BaseCollector:
 
         results = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_item = {executor.submit(self.fetch_item, item, group_key): item for item in items}
+            # PASS DATES HERE
+            future_to_item = {executor.submit(self.fetch_item, item, group_key, start_date, end_date): item for item in items}
             for future in concurrent.futures.as_completed(future_to_item):
                 try:
                     data = future.result()
                     if data:
                         results.extend(data)
                 except Exception as e:
-                    self.logger.error(f"Error fetching item: {e}")
+                    self.logger.error(f"Error fetching item: {e}", exc_info=True)
         
         return results
 

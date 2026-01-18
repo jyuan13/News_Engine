@@ -23,14 +23,23 @@ class GoogleNewsRSSFetcher:
         self.scrape_config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         self.scrape_config.request_timeout = 10
 
-    def fetch(self, query: str, lang: str = "en-US", geo: str = "US", limit: int = 100) -> list[dict]:
+    def fetch(self, query: str, lang: str = "en-US", geo: str = "US", limit: int = 100, start_date: str = None, end_date: str = None) -> list[dict]:
         """
         Fetch news for a keyword/query using Google News RSS + Scraping (Optimized).
+        Supports date range via search operators (after:YYYY-MM-DD before:YYYY-MM-DD).
         """
         source_name = f"GoogleRSS ({query})"
         logger.info(f"Fetching {source_name}...")
         
-        encoded_query = urllib.parse.quote(query)
+        # Date Logic
+        # If start/end provided, append to query
+        final_query = query
+        if start_date and end_date:
+            # Google Search Operators: "term after:2025-01-01 before:2025-01-07"
+            final_query = f"{query} after:{start_date} before:{end_date}"
+            logger.info(f"📅 Using Date Range: {start_date} to {end_date}")
+
+        encoded_query = urllib.parse.quote(final_query)
         rss_url = f"{self.base_url}?q={encoded_query}&hl={lang}&gl={geo}&ceid={geo}:{lang.split('-')[0]}"
         
         try:
@@ -38,21 +47,33 @@ class GoogleNewsRSSFetcher:
             all_entries = feed.entries
             
             # 1. Date Filtering (Pre-filtering)
-            # Only keep items within the last X days (e.g., 7 days)
-            days_back = 7 # Could be configurable, but 7 is standard for this project
-            cutoff_date = datetime.now() - timedelta(days=days_back)
-            
             valid_entries = []
-            for entry in all_entries:
-                if hasattr(entry, 'published_parsed') and entry.published_parsed:
-                    pub_dt = datetime.fromtimestamp(time.mktime(entry.published_parsed))
-                    if pub_dt >= cutoff_date:
-                        valid_entries.append(entry)
+            
+            if start_date and end_date:
+                # Targeted Range Mode: strict filter based on provided dates
+                s_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                e_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1) # Inclusive end? allow some buffer
+                
+                for entry in all_entries:
+                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                        pub_dt = datetime.fromtimestamp(time.mktime(entry.published_parsed))
+                        # Basic buffer check (sometimes RSS returns out of range items)
+                        if s_dt <= pub_dt <= e_dt + timedelta(days=1): 
+                           valid_entries.append(entry)
+            else:
+                # Default "Recent" Mode
+                days_back = 7 
+                cutoff_date = datetime.now() - timedelta(days=days_back)
+                for entry in all_entries:
+                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                        pub_dt = datetime.fromtimestamp(time.mktime(entry.published_parsed))
+                        if pub_dt >= cutoff_date:
+                            valid_entries.append(entry)
             
             # Apply limit after date filtering
             valid_entries = valid_entries[:limit]
             
-            logger.info(f"RSS: Found {len(all_entries)} total, {len(valid_entries)} relevant (last {days_back}d). Scraping {len(valid_entries)} items...")
+            logger.info(f"RSS: Found {len(all_entries)} total, {len(valid_entries)} relevant. Scraping...")
             
             results = []
             
@@ -62,7 +83,7 @@ class GoogleNewsRSSFetcher:
             
             # Helper wrapper for thread mapping
             def scrape_wrapper(entry):
-                return self._process_entry(entry, query)
+                return self._process_entry(entry, final_query) # Use final_query for related_ticker
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                 # Map entries to threads
