@@ -48,8 +48,17 @@ def run_collector(key, start_date=None, end_date=None):
         # PASS DATES HERE
         data_json, filename = collector.run(start_date, end_date)
         
-        if not data_json or "data" not in data_json or not data_json["data"]:
+        # Validate (Check cleaned_data or fallback to data behavior)
+        if not data_json:
             logger.warning(f"⚠️ No data collected for {key}.")
+            return None, None
+            
+        # Support both new 'cleaned_data' and old 'data'
+        has_cleaned = "cleaned_data" in data_json and data_json["cleaned_data"]
+        has_data = "data" in data_json and data_json["data"]
+        
+        if not (has_cleaned or has_data):
+            logger.warning(f"⚠️ No data collected for {key} (Empty).")
             return None, None
 
         # Prepare Metadata
