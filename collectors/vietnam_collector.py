@@ -2,7 +2,7 @@ from collectors.base_collector import BaseCollector
 
 class VietnamCollector(BaseCollector):
     def run(self, start_date=None, end_date=None):
-        group_key = "VIETNAM_MARKET"
+        group_key = "VIETNAM_EN"
         raw_data = self.collect_group(group_key, start_date, end_date)
         
         # Process (Clean)

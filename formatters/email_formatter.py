@@ -21,19 +21,14 @@ class EmailFormatter:
         </style>
         """
 
-    def format_html(self, data, title="News Report"):
+    def format_html(self, data, title="News Report", cleaned_truncate_length=None):
         """
         Converts the standardized JSON report OR Unified Multi-Group payload into an HTML email body.
-        Payload Structure:
-        {
-            "is_unified": True,
-            "subject": ...,
-            "results": {
-                "KEY": { "data": {...}, "meta": {...} },
-                "KEY2": ...
-            },
-            ...
-        }
+        Only displays Cleaned Data. Raw data is attached as a file.
+        cleaned_truncate_length: 
+            - None: Full content
+            - Int (e.g. 500, 100): Truncate content
+            - 0: Title Only (Hide Summary)
         """
         if not data:
             return "<html><body><p>No data available.</p></body></html>"
@@ -41,11 +36,11 @@ class EmailFormatter:
         # helper
         def generate_section_html(group_key, group_data, group_meta):
             news_items = group_data.get("data", [])
-            raw_items = group_data.get("raw_data", [])
+            raw_items = group_data.get("raw_data", []) # Used for counting only
             group_name = group_meta.get("group_name", group_key)
             
             # Helper to generate table rows
-            def generate_rows(items):
+            def generate_rows(items, truncate_length):
                 rows = ""
                 for item in items:
                     item_title = item.get('title', 'No Title')
@@ -55,9 +50,13 @@ class EmailFormatter:
                     link = item.get('link') or item.get('url') or '#'
                     content = item.get('content', '') or item.get('summary', '') or ''
                     
-                    # Truncate content
-                    if len(content) > 300:
-                        content = content[:300] + "..."
+                    # Logic for Title Only vs Truncation
+                    summary_html = ""
+                    if truncate_length != 0:
+                        # Truncate content
+                        if truncate_length is not None and len(content) > truncate_length:
+                            content = content[:truncate_length] + "..."
+                        summary_html = f'<div class="summary">{content}</div>'
                     
                     rows += f"""
                     <tr>
@@ -67,43 +66,21 @@ class EmailFormatter:
                         </td>
                         <td class="content-col">
                             <div class="title"><a href="{link}">{item_title}</a></div>
-                            <div class="summary">{content}</div>
+                            {summary_html}
                         </td>
                     </tr>
                     """
                 return rows
 
-            cleaned_rows = generate_rows(news_items)
-            raw_rows = generate_rows(raw_items) if raw_items else ""
-
-            # Build Section HTML
-            raw_section_html = ""
-            if raw_items:
-                raw_section_html = f"""
-                <div class="raw-section">
-                    <h4>📝 Raw Data ({len(raw_items)} items) - {group_name}</h4>
-                    <details>
-                        <summary>Click to expand raw data</summary>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style="width: 15%">Meta</th>
-                                    <th style="width: 85%">News Content</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {raw_rows}
-                            </tbody>
-                        </table>
-                    </details>
-                </div>
-                """
-
+            cleaned_rows = generate_rows(news_items, truncate_length=cleaned_truncate_length)
+            
+            # Note: Raw Data is NOT included in the HTML body anymore, only in Attachment.
+            
             html_part = f"""
             <div class="group-container" style="margin-top: 30px; border-top: 3px solid #3498db; padding-top: 10px;">
                 <h2 style="color: #2c3e50;">📌 {group_name}</h2>
                 <div class="meta">
-                    Cleaned: {len(news_items)} | Raw: {len(raw_items)}
+                    Cleaned: {len(news_items)} | Raw: {len(raw_items)} (See Attachment)
                 </div>
                 
                 <h3>✅ Cleaned Highlights</h3>
@@ -118,7 +95,6 @@ class EmailFormatter:
                         {cleaned_rows}
                     </tbody>
                 </table>
-                {raw_section_html}
             </div>
             """
             return html_part

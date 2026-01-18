@@ -50,7 +50,7 @@ class EmailDispatcher:
             server.sendmail(self.sender_email, self.receiver_email, msg.as_string())
             server.quit()
             self.logger.info("✅ Email sent successfully.")
-            return True
+            return True, "OK"
         except Exception as e:
             self.logger.error(f"❌ Email sending failed: {e}")
-            return False
+            return False, str(e)

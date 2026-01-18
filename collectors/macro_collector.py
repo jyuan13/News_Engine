@@ -2,7 +2,7 @@ from collectors.base_collector import BaseCollector
 
 class MacroCollector(BaseCollector):
     def run(self, start_date=None, end_date=None):
-        group_key = "MACRO_RISK_EN"
+        group_key = "GLOBAL_MACRO_RISKS"
         raw_data = self.collect_group(group_key, start_date, end_date)
         
         # Process (Clean)

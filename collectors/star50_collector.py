@@ -2,7 +2,7 @@ from collectors.base_collector import BaseCollector
 
 class Star50Collector(BaseCollector):
     def run(self, start_date=None, end_date=None):
-        group_key = "STAR50_CHIP_CN"
+        group_key = "A_SHARES_STAR50"
         raw_data = self.collect_group(group_key, start_date, end_date)
         
         # Process (Clean)
