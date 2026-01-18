@@ -35,7 +35,8 @@ class EmailFormatter:
 
         # helper
         def generate_section_html(group_key, group_data, group_meta):
-            news_items = group_data.get("data", [])
+            # Support new "cleaned_data" key, fallback to legacy "data"
+            news_items = group_data.get("cleaned_data", group_data.get("data", []))
             raw_items = group_data.get("raw_data", []) # Used for counting only
             group_name = group_meta.get("group_name", group_key)
             

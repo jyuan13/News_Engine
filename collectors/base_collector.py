@@ -139,6 +139,25 @@ class BaseCollector:
         return cleaned_map.get("RawData", [])
 
     def save_report(self, filename, cleaned_data, stats_report, raw_data=None):
+        
+        # Token Saving: Remove 'link', 'images', 'url' fields as requested
+        keys_to_remove = ["link", "url", "image", "images", "thumbnail"]
+        
+        def optimize_item(item):
+            # Create a copy or modify in place? modifying in place is fine here.
+            for k in keys_to_remove:
+                if k in item:
+                    del item[k]
+            return item
+
+        # Optimize Cleaned Data
+        if cleaned_data:
+            cleaned_data = [optimize_item(x) for x in cleaned_data]
+            
+        # Optimize Raw Data
+        if raw_data:
+            raw_data = [optimize_item(x) for x in raw_data]
+
         final_output = {
             "meta": {
                 "timestamp": datetime.now().isoformat(),
@@ -146,7 +165,7 @@ class BaseCollector:
                 "raw_count": len(raw_data) if raw_data else 0,
                 "stats": stats_report
             },
-            "data": cleaned_data,
+            "cleaned_data": cleaned_data, # Renamed from 'data' for clarity
             "raw_data": raw_data or []
         }
         abs_path = os.path.abspath(os.path.join("data", filename))
