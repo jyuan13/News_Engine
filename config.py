@@ -256,18 +256,18 @@ CONFIG = {
                     {"value": "越南股市", "name": "越南股市", "type": "keyword"},
                     {"value": "VN-Index", "name": "VN-Index", "type": "keyword"},
                     {"value": "越南繁荣银行", "name": "越南繁荣银行(CN)", "type": "keyword"},
-                    {"value": "VPB", "name": "VPB", "type": "keyword"},
+                    {"value": "VPBank Vietnam", "name": "VPBank Vietnam", "type": "keyword"}, # Replaced VPB
                     {"value": "军队银行", "name": "军队银行", "type": "keyword"},
-                    {"value": "MBB", "name": "MBB", "type": "keyword"},
+                    {"value": "MB Bank Vietnam", "name": "MB Bank Vietnam", "type": "keyword"}, # Replaced MBB (Mens Basketball)
                     {"value": "和发集团", "name": "和发集团(CN)", "type": "keyword"},
-                    {"value": "HPG", "name": "HPG", "type": "keyword"},
-                    {"value": "FPT", "name": "FPT", "type": "keyword"},
+                    {"value": "Hoa Phat Group", "name": "Hoa Phat Group", "type": "keyword"}, # Replaced HPG
+                    {"value": "FPT Corporation", "name": "FPT Corporation", "type": "keyword"}, # Replaced FPT
                     {"value": "移动世界", "name": "移动世界", "type": "keyword"},
-                    {"value": "MWG", "name": "MWG", "type": "keyword"},
+                    {"value": "Mobile World Investment", "name": "Mobile World Investment", "type": "keyword"}, # Replaced MWG
                     {"value": "Vingroup", "name": "Vingroup", "type": "keyword"},
-                    {"value": "VIC", "name": "VIC", "type": "keyword"},
+                    # Removed VIC (Duplicative and ambiguous)
                     {"value": "Vinhomes", "name": "Vinhomes", "type": "keyword"},
-                    {"value": "VHM", "name": "VHM", "type": "keyword"},
+                    # Removed VHM (Duplicative and ambiguous)
                     {"value": "USD VND", "name": "USD VND", "type": "keyword"},
                     {"value": "越南盾汇率", "name": "越南盾汇率", "type": "keyword"},
                     {"value": "越南制造业PMI", "name": "越南制造业PMI", "type": "keyword"},

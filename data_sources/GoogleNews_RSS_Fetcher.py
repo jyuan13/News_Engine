@@ -3,6 +3,7 @@ import feedparser
 from newspaper import Article, Config
 from datetime import datetime, timedelta
 import urllib.parse
+from bs4 import BeautifulSoup
 from utils.utils_data import StatsTracker
 import time
 import random
@@ -113,26 +114,25 @@ class GoogleNewsRSSFetcher:
             article = Article(url, config=self.scrape_config)
             
             # 2. Download & Parse
+            full_text = ""
             try:
                 article.download()
                 article.parse()
+                full_text = article.text
             except Exception as e:
                 # Fallback to snippet if download fails
                 logger.debug(f"Scrape failed for {url}: {e}")
-                return {
-                    "source": "GoogleNews (Snippet)",
-                    "title": entry.title,
-                    "published_date": self._parse_date(entry),
-                    "content": entry.get('summary', 'No content'),
-                    "link": url,
-                    "related_ticker": query
-                }
-
-            # 3. Extract Full Text
-            full_text = article.text
+                # CONTINUE to fallback logic below
+            
+            # 3. Fallback Logic (if scrape failed or text too short)
+            source_type = "GoogleNews (FullText)"
+            
             if not full_text or len(full_text) < 50:
-                 # If full text is too short or empty, fallback to summary
-                 full_text = entry.get('summary', '') or article.text
+                 # Fallback to RSS summary
+                 raw_summary = entry.get('summary', '')
+                 # CLEAN HTML from summary
+                 full_text = self._clean_html(raw_summary)
+                 source_type = "GoogleNews (Snippet)"
             
             # Title Fallback Logic
             title = article.title
@@ -140,17 +140,18 @@ class GoogleNewsRSSFetcher:
                 title = entry.title
 
             # Final Quality Check
-            if not title or not full_text or len(full_text) < 20:
-                logger.debug(f"Skipping low quality item: {url}")
+            # Must have at least a decent title and some content
+            if not title or not full_text or len(full_text) < 30:
+                logger.debug(f"Skipping low quality item: {url} (Len: {len(full_text) if full_text else 0})")
                 return None
 
             # 4. Return Normalized Data
             return {
-                "source": "GoogleNews (FullText)",
+                "source": source_type,
                 "title": title,
                 "published_date": self._parse_date(entry),
                 "author": article.authors,
-                "content": full_text, # PRIORITY: Full Text
+                "content": full_text, 
                 "link": url,
                 "related_ticker": query,
                 "images": list(article.images) if article.images else []
@@ -164,3 +165,16 @@ class GoogleNewsRSSFetcher:
         if hasattr(entry, 'published_parsed') and entry.published_parsed:
             return datetime.fromtimestamp(time.mktime(entry.published_parsed)).isoformat()
         return datetime.now().isoformat()
+
+    def _clean_html(self, html_content):
+        """
+        Remove HTML tags and clean up whitespace.
+        """
+        if not html_content:
+            return ""
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+            text = soup.get_text(separator=' ')
+            return " ".join(text.split())
+        except Exception:
+            return html_content
