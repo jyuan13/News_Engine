@@ -144,7 +144,15 @@ def main():
     }
     
     logger.info(f"🚀 Dispatching Unified Report: {subject}")
-    bus.publish(topic=subject, data=unified_payload, meta={})
+    
+    # Collect all filenames for attachment
+    all_filenames = []
+    for res in collected_results.values():
+        fpath = res.get("meta", {}).get("filename")
+        if fpath:
+            all_filenames.append(fpath)
+            
+    bus.publish(topic=subject, data=unified_payload, meta={"filenames": all_filenames})
 
 if __name__ == "__main__":
     main()

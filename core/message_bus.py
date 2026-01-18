@@ -25,10 +25,18 @@ class MessageBus:
         
         # Prepare Attachments
         attachments = []
-        if meta and "filename" in meta:
-            fpath = meta["filename"]
-            if os.path.exists(fpath):
-                attachments.append(fpath)
+        if meta:
+            # Single file legacy support
+            if "filename" in meta:
+                fpath = meta["filename"]
+                if os.path.exists(fpath):
+                    attachments.append(fpath)
+            
+            # Multiple files support (Unified Report)
+            if "filenames" in meta and isinstance(meta["filenames"], list):
+                for fpath in meta["filenames"]:
+                    if os.path.exists(fpath):
+                        attachments.append(fpath)
         
         subject = f"[News_Engine] {topic} - {meta.get('date', '')}"
 
